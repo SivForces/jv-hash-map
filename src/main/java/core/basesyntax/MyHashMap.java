@@ -3,9 +3,13 @@ package core.basesyntax;
 import java.util.LinkedList;
 
 public class MyHashMap<K, V> implements MyMap<K, V> {
+
+    static final int INITIAL_CAPACITY = 16;
+    static final double LOAD_FACTOR = 0.75;
+
     private static class Entry<K, V> {
-        K key;
-        V value;
+        private K key;
+        private V value;
 
         public Entry(K key, V value) {
             this.key = key;
@@ -13,11 +17,9 @@ public class MyHashMap<K, V> implements MyMap<K, V> {
         }
     }
 
-    final static int INITIAL_CAPACITY = 16;
-    final static double LOAD_FACTOR = 0.75;
     private LinkedList<Entry<K, V>>[] table = new LinkedList[INITIAL_CAPACITY];
     private int size = 0;
-    double threshold = INITIAL_CAPACITY * LOAD_FACTOR;
+    private double threshold = INITIAL_CAPACITY * LOAD_FACTOR;
 
     @Override
     public V put(K key, V value) {
@@ -25,13 +27,22 @@ public class MyHashMap<K, V> implements MyMap<K, V> {
             if (table[0] == null) {
                 table[0] = new LinkedList<>();
             }
-
+            for (var entry : table[0]) {
+                if (entry.key == key) {
+                    var oldValue = entry.value;
+                    entry.value = value;
+                    return oldValue;
+                }
+            }
             table[0].add(new Entry<>(key, value));
+            size++;
+            resize(size);
+            return null;
         }
         int index = getIndex(key);
         if (table[index] != null) {
             for (var entry : table[index]) {
-                if (entry.key.hashCode() == key.hashCode()) {
+                if (entry.key == key || (entry.key != null && entry.key.equals(key))) {
                     var oldValue = entry.value;
                     entry.value = value;
                     return oldValue;
@@ -48,12 +59,11 @@ public class MyHashMap<K, V> implements MyMap<K, V> {
 
     @Override
     public V getValue(K key) {
-        for (LinkedList<Entry<K, V>> entries : table) {
-            if (entries != null) {
-                for (var entry : entries) {
-                    if (entry.key == key) {
-                        return entry.value;
-                    }
+        int index = getIndex(key);
+        if (table[index] != null) {
+            for (var entry : table[index]) {
+                if (entry.key == key || (entry.key != null && entry.key.equals(key))) {
+                    return entry.value;
                 }
             }
         }
@@ -73,7 +83,11 @@ public class MyHashMap<K, V> implements MyMap<K, V> {
             for (LinkedList<Entry<K, V>> entries : table) {
                 if (entries != null) {
                     for (var entry : entries) {
-                        index = (entry.key.hashCode() & 0x7fffffff) % newCapacity;
+                        if (entry.key == null) {
+                            index = 0;
+                        } else {
+                            index = (entry.key.hashCode() & 0x7fffffff) % newCapacity;
+                        }
                         if (newTable[index] == null) {
                             newTable[index] = new LinkedList<>();
                         }
